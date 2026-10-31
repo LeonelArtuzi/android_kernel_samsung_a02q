@@ -1,0 +1,12 @@
+# Samsung's prebuilt toolchain from the source release (2.3G); the Lineage
+# build uses its own clang/gcc prebuilts.
+/toolchain/
+
+# Build output (in-tree builds only; Lineage builds with O=).
+/out/
+*.o
+*.ko
+*.a
+.*.cmd
+modules.order
+Module.symvers
