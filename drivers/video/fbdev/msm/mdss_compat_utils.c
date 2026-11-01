@@ -2121,9 +2121,16 @@ static int __from_user_pa_data_v1_7(
 {
 	struct mdp_pa_data_v1_7_32 pa_cfg_payload32;
 	struct mdp_pa_data_v1_7 pa_cfg_payload;
+	compat_caddr_t payload32;
+	void *payload;
 
-	if (copy_from_user(&pa_cfg_payload32,
-			compat_ptr(pa_v2_cfg32->cfg_payload),
+	/*
+	 * pa_v2_cfg32 and pa_v2_cfg live in user memory: read their
+	 * cfg_payload with get_user(), a plain dereference faults under PAN
+	 * (same bug the HS60 PCC fix above works around).
+	 */
+	if (get_user(payload32, &pa_v2_cfg32->cfg_payload) ||
+	    copy_from_user(&pa_cfg_payload32, compat_ptr(payload32),
 			sizeof(pa_cfg_payload32))) {
 		pr_err("failed to copy the PA payload from userspace\n");
 		return -EFAULT;
@@ -2155,7 +2162,8 @@ static int __from_user_pa_data_v1_7(
 	pa_cfg_payload.six_zone_curve_p1 =
 		compat_ptr(pa_cfg_payload32.six_zone_curve_p1);
 
-	if (copy_to_user(pa_v2_cfg->cfg_payload, &pa_cfg_payload,
+	if (get_user(payload, &pa_v2_cfg->cfg_payload) ||
+	    copy_to_user((void __user *)payload, &pa_cfg_payload,
 			sizeof(pa_cfg_payload))) {
 		pr_err("Failed to copy to user pa cfg payload\n");
 		return -EFAULT;
@@ -2229,10 +2237,12 @@ static int __to_user_pa_data_v1_7(
 {
 	struct mdp_pa_data_v1_7_32 pa_cfg_payload32;
 	struct mdp_pa_data_v1_7 pa_cfg_payload;
+	compat_caddr_t payload32;
+	void *payload;
 
 	memset(&pa_cfg_payload32, 0, sizeof(pa_cfg_payload32));
-	if (copy_from_user(&pa_cfg_payload,
-			pa_v2_cfg->cfg_payload,
+	if (get_user(payload, &pa_v2_cfg->cfg_payload) ||
+	    copy_from_user(&pa_cfg_payload, (void __user *)payload,
 			sizeof(pa_cfg_payload))) {
 		pr_err("failed to copy the PA payload from userspace\n");
 		return -EFAULT;
@@ -2258,8 +2268,8 @@ static int __to_user_pa_data_v1_7(
 	pa_cfg_payload32.six_zone_val_hold = pa_cfg_payload.six_zone_val_hold;
 	pa_cfg_payload32.six_zone_len = pa_cfg_payload.six_zone_len;
 
-	if (copy_to_user(compat_ptr(pa_v2_cfg32->cfg_payload),
-			&pa_cfg_payload32,
+	if (get_user(payload32, &pa_v2_cfg32->cfg_payload) ||
+	    copy_to_user(compat_ptr(payload32), &pa_cfg_payload32,
 			sizeof(pa_cfg_payload32))) {
 		pr_err("Failed to copy to user pa cfg payload\n");
 		return -EFAULT;
