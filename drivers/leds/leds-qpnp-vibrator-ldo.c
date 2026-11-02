@@ -372,8 +372,19 @@ static ssize_t qpnp_vib_store_vmax(struct device *dev,
 
 	mutex_lock(&chip->lock);
 	chip->vmax_uV = data;
+	/*
+	 * Android sets the amplitude right after turning the motor on, so apply
+	 * it now; while overdrive runs, overdrive_work picks the new vmax up.
+	 */
+	if (chip->vib_enabled && (chip->disable_overdrive ||
+				  !hrtimer_active(&chip->overdrive_timer))) {
+		ret = qpnp_vib_ldo_set_voltage(chip, data);
+		if (ret < 0)
+			pr_err("set vibration voltage = %duV failed, ret=%d\n",
+				data, ret);
+	}
 	mutex_unlock(&chip->lock);
-	return ret;
+	return ret < 0 ? ret : count;
 }
 
 static struct device_attribute qpnp_vib_attrs[] = {
